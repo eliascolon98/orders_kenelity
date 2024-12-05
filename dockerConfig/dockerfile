@@ -1,0 +1,38 @@
+#  Replace from image base repository uri in aws
+# FROM <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<REPOSITORY_NAME>:<TAG>
+ARG BASE_IMAGE_URI
+
+FROM $BASE_IMAGE_URI
+
+# ARG FOR INDICATE THE NGINX SERVER PORT
+ARG SERVER_APP_PORT
+
+# Set workdir
+WORKDIR /app-backend
+COPY  . /app-backend/
+
+# SET SSH CONFIG
+RUN apt-get -y update
+RUN apt-get -y install git
+#ENV NODE_VERSION=18.13.0
+
+# SET nodejs version and app port
+ENV SERVER_APP_PORT=$SERVER_APP_PORT
+
+#  INSTALL NODEJS VERSION
+#RUN . "$HOME/.nvm/nvm.sh" && nvm install ${NODE_VERSION}
+
+# Remove docker config folder
+RUN rm -rf dockerConfig
+
+# INSTALL AND BUILD PACKAGES
+RUN . "$HOME/.nvm/nvm.sh" && npm install
+RUN . "$HOME/.nvm/nvm.sh" && npm install npm@9.8.0
+RUN . "$HOME/.nvm/nvm.sh" && npm run build
+
+# UPDATE NGINX PORT CONFIG with envsubst
+RUN envsubst '$SERVER_APP_PORT' < /etc/nginx/nginx.conf > /etc/nginx/nginx_updated.conf
+RUN rm -rf /etc/nginx/nginx.conf && mv /etc/nginx/nginx_updated.conf /etc/nginx/nginx.conf
+
+#  START APP
+CMD . "$HOME/.nvm/nvm.sh" && service nginx start && npm run start:dev
